@@ -9,9 +9,16 @@ import SwiftUI
 
 @main
 struct RealTimePriceTrackerApp: App {
+    @StateObject private var viewModel = StocksViewModel()
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            NavigationStack() {
+                FeedView()
+                    .navigationDestination(for: Stock.self) { stock in
+                        SymbolDetailsView(stock: stock)
+                    }
+            }
+            .environmentObject(viewModel)
         }
     }
 }

@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct FeedView: View {
-    @StateObject var viewModel: StocksViewModel
+    @EnvironmentObject var viewModel: StocksViewModel
     
     var body: some View {
         List(viewModel.stocks) { stock in
