@@ -13,23 +13,7 @@ struct FeedView: View {
     var body: some View {
         List(viewModel.stocks) { stock in
             NavigationLink(value: stock) {
-                HStack {
-                    Text(stock.symbol)
-                        .font(.headline)
-                    
-                    Spacer()
-                    
-                    Text(stock.price, format: .number.precision(.fractionLength(2)))
-                        .font(.system(.body, design: .monospaced))
-                        .fontWeight(.semibold)
-                    
-                    Text(stock.directionIndicator)
-                        .foregroundStyle(stock.directionColor)
-                        .font(.headline.weight(.bold))
-                        .frame(width: 20)
-                }
-                .padding(.vertical, 6)
-                .listRowBackground(stock.flashColor)
+                StockRowView(stock: stock)
             }
         }
         .navigationTitle("StockTracker")
