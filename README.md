@@ -2,6 +2,10 @@
 
 SwiftUI iOS app that simulates real-time stock prices for 25 symbols over a shared WebSocket echo connection.
 
+## Screen Recording (Simulator)
+![LiveTracker](https://github.com/user-attachments/assets/f9c5754b-1cbf-4573-994b-683de494d8ed)
+
+
 ## Highlights
 
 - Exactly 25 required symbols.
@@ -43,8 +47,23 @@ SwiftUI iOS app that simulates real-time stock prices for 25 symbols over a shar
 - Views consume `@EnvironmentObject var viewModel: StocksViewModel`.
 - Navigation via `NavigationStack` + `.navigationDestination(for: Stock.self)`.
 
+## Deep Link
+
+Configured URL scheme: `stocks`
+
+Examples:
+- `stocks://symbol/AAPL`
+- `stocks://symbol/NVDA`
+
 ## Testing
 Unit tests use mocks/fakes to avoid network and real timers:
 - manual ticker tick injection,
 - inbound message injection,
 - deterministic sorting/update assertions.
+
+## Local Run
+
+1. Open `RealTimePriceTracker.xcodeproj` in Xcode.
+2. Select an iOS simulator (for example iPhone 16).
+3. Build and run.
+4. Tap **Start** to begin updates and **Stop** to pause feed updates.
