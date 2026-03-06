@@ -18,7 +18,7 @@ final class WebSocketClient: ObservableObject {
     private let decoder = JSONDecoder()
     private let encoder = JSONEncoder()
     
-    let receivedMessages = PassthroughSubject<StockMessage, Never>()
+    let receivedMessages = PassthroughSubject<PriceUpdate, Never>()
     
     func connect() {
         guard webSocketTask == nil else { return }
@@ -36,7 +36,7 @@ final class WebSocketClient: ObservableObject {
         isConnected = false
     }
     
-    func send(_ message: StockMessage) {
+    func send(_ message: PriceUpdate) {
         guard let webSocketTask else { return }
 
         do {
@@ -73,7 +73,7 @@ final class WebSocketClient: ObservableObject {
                 }
 
                 if let data,
-                   let decoded = try? self.decoder.decode(StockMessage.self, from: data) {
+                   let decoded = try? self.decoder.decode(PriceUpdate.self, from: data) {
                     Task { @MainActor in
                         self.receivedMessages.send(decoded)
                     }

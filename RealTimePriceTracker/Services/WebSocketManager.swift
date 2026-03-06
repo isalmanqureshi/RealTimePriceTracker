@@ -13,7 +13,7 @@ final class WebSocketManager: ObservableObject {
     static let shared = WebSocketManager()
     
     @Published private(set) var isConnected = false
-    let incomingMessages = PassthroughSubject<StockMessage, Never>()
+    let incomingMessages = PassthroughSubject<PriceUpdate, Never>()
     
     private let client = WebSocketClient()
     private var cancellables = Set<AnyCancellable>()
@@ -41,7 +41,7 @@ final class WebSocketManager: ObservableObject {
         client.disconnect()
     }
     
-    func send(_ message: StockMessage) {
+    func send(_ message: PriceUpdate) {
         client.send(message)
     }
 }

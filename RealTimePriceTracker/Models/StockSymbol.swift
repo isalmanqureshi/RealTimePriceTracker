@@ -56,7 +56,7 @@ struct Stock: Identifiable, Hashable {
         switch direction {
         case .up: return "↑"
         case .down: return "↓"
-        case .unchanged: return "→"
+        case .unchanged: return ""
         }
     }
 

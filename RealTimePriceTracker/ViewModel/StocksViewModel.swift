@@ -10,6 +10,7 @@ import Combine
 final class StocksViewModel: ObservableObject {
     @Published private(set) var stocks: [Stock] = Stock.initialStocks()
     @Published private(set) var isConnected = false
+    @Published private(set) var isFeedRunning = false
     
     private let webSocketManager: WebSocketManager
     private let feedEngine: PriceFeedEngine
@@ -27,10 +28,15 @@ final class StocksViewModel: ObservableObject {
         webSocketManager.connect()
     }
     
+    func toggleFeed() {
+        isFeedRunning ? stopFeed() : startFeed()
+    }
+    
     func startFeed() {
         guard timerCancellable == nil else { return }
         connectIfNeeded()
-
+        isFeedRunning = true
+        
         timerCancellable = Timer.publish(every: 2, on: .main, in: .common)
             .autoconnect()
             .sink { [weak self] _ in
@@ -58,9 +64,10 @@ final class StocksViewModel: ObservableObject {
     func stopFeed() {
         timerCancellable?.cancel()
         timerCancellable = nil
+        isFeedRunning = false
     }
     
-    private func apply(_ message: StockMessage) {
+    private func apply(_ message: PriceUpdate) {
         guard let index = stocks.firstIndex(where: { $0.symbol == message.symbol }) else { return }
 
         let oldPrice = stocks[index].price

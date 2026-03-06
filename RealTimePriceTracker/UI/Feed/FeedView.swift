@@ -15,6 +15,7 @@ struct FeedView: View {
             NavigationLink(value: stock) {
                 StockRowView(stock: stock)
             }
+            .accessibilityIdentifier("row_\(stock.symbol)")
         }
         .navigationTitle("StockTracker")
         .toolbar {
@@ -22,13 +23,14 @@ struct FeedView: View {
                 Label(viewModel.isConnected ? "Connected" : "Disconnected", systemImage: viewModel.isConnected ? "dot.radiowaves.left.and.right" : "wifi.slash")
                     .foregroundStyle(viewModel.isConnected ? .green : .red)
                     .font(.caption)
+                    .accessibilityIdentifier("connectionIndicator")
             }
 
             ToolbarItem(placement: .topBarTrailing) {
-                HStack {
-                    Button("Start") { viewModel.startFeed() }
-                    Button("Stop") { viewModel.stopFeed() }
+                Button(viewModel.isFeedRunning ? "Stop" : "Start") {
+                    viewModel.toggleFeed()
                 }
+                .accessibilityIdentifier("toggleFeedButton")
             }
         }
     }

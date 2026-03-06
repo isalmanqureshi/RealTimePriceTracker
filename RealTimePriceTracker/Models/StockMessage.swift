@@ -6,6 +6,8 @@
 //
 import Foundation
 
+typealias PriceUpdate = StockMessage
+
 struct StockMessage: Codable {
     let symbol: String
     let price: Double
