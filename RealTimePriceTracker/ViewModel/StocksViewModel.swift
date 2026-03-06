@@ -14,13 +14,17 @@ final class StocksViewModel: ObservableObject {
     
     private let webSocketService: WebSocketServicing
     private let priceFeedEngine: PriceFeedGenerating
+    private let tickerService: TickerServicing
+    
     private var timerCancellable: AnyCancellable?
     private var cancellables = Set<AnyCancellable>()
     
-    init(webSocketService: WebSocketServicing = WebSocketManager(client: WebSocketClient()), priceFeedEngine: PriceFeedGenerating = PriceFeedEngine(),
-         initialStocks: [Stock] = Stock.initialStocks()) {
+    init(webSocketService: WebSocketServicing = WebSocketManager(client: WebSocketClient()),      priceFeedEngine: PriceFeedGenerating = PriceFeedEngine(),
+        tickerService: TickerServicing = TimerTickerService(),
+        initialStocks: [Stock] = Stock.initialStocks()) {
         self.webSocketService = webSocketService
         self.priceFeedEngine = priceFeedEngine
+        self.tickerService = tickerService
         self.stocks = initialStocks.sorted { lhs, rhs in
             if lhs.price == rhs.price { return lhs.symbol < rhs.symbol }
             return lhs.price > rhs.price
@@ -38,13 +42,20 @@ final class StocksViewModel: ObservableObject {
         isFeedRunning ? stopFeed() : startFeed()
     }
     
-    func startFeed() {
-        guard timerCancellable == nil else { return }
-        connectIfNeeded()
-        isFeedRunning = true
+    private func bind() {
+        webSocketService.connectionPublisher
+            .receive(on: DispatchQueue.main)
+            .assign(to: &$isConnected)
         
-        timerCancellable = Timer.publish(every: 2, on: .main, in: .common)
-            .autoconnect()
+        webSocketService.messagePublisher
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] message in
+                self?.apply(message)
+            }
+            .store(in: &cancellables)
+        
+        tickerService.tickPublisher
+            .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
                 guard let self else { return }
                 self.stocks.forEach { stock in
@@ -52,24 +63,18 @@ final class StocksViewModel: ObservableObject {
                     self.webSocketService.send(update)
                 }
             }
-    }
-    
-    private func bind() {
-        webSocketService.connectionPublisher
-            .receive(on: DispatchQueue.main)
-            .assign(to: &$isConnected)
-
-        webSocketService.messagePublisher
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] message in
-                self?.apply(message)
-            }
             .store(in: &cancellables)
     }
     
+    func startFeed() {
+        guard !isFeedRunning else { return }
+        connectIfNeeded()
+        isFeedRunning = true
+        tickerService.start(interval: 2.0)
+    }
+    
     func stopFeed() {
-        timerCancellable?.cancel()
-        timerCancellable = nil
+        tickerService.stop()
         isFeedRunning = false
     }
     
