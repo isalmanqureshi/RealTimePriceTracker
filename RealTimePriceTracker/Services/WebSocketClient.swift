@@ -27,6 +27,7 @@ final class WebSocketClient: ObservableObject {
         webSocketTask = task
         task.resume()
         isConnected = true
+        receiveNext()
     }
 
     func disconnect() {
