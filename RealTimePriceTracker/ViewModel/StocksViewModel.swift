@@ -8,24 +8,30 @@ import Foundation
 import Combine
 
 final class StocksViewModel: ObservableObject {
-    @Published private(set) var stocks: [Stock] = Stock.initialStocks()
+    @Published private(set) var stocks: [Stock]
     @Published private(set) var isConnected = false
     @Published private(set) var isFeedRunning = false
     
-    private let webSocketManager: WebSocketManager
-    private let feedEngine: PriceFeedEngine
+    private let webSocketService: WebSocketServicing
+    private let priceFeedEngine: PriceFeedGenerating
     private var timerCancellable: AnyCancellable?
     private var cancellables = Set<AnyCancellable>()
     
-    init(webSocketManager: WebSocketManager = .shared, feedEngine: PriceFeedEngine = PriceFeedEngine()) {
-        self.webSocketManager = webSocketManager
-        self.feedEngine = feedEngine
+    init(webSocketService: WebSocketServicing = WebSocketManager(client: WebSocketClient()), priceFeedEngine: PriceFeedGenerating = PriceFeedEngine(),
+         initialStocks: [Stock] = Stock.initialStocks()) {
+        self.webSocketService = webSocketService
+        self.priceFeedEngine = priceFeedEngine
+        self.stocks = initialStocks.sorted { lhs, rhs in
+            if lhs.price == rhs.price { return lhs.symbol < rhs.symbol }
+            return lhs.price > rhs.price
+        }
+        
         bind()
         connectIfNeeded()
     }
     
     func connectIfNeeded() {
-        webSocketManager.connect()
+        webSocketService.connect()
     }
     
     func toggleFeed() {
@@ -42,23 +48,23 @@ final class StocksViewModel: ObservableObject {
             .sink { [weak self] _ in
                 guard let self else { return }
                 self.stocks.forEach { stock in
-                    let update = self.feedEngine.nextUpdate(for: stock)
-                    self.webSocketManager.send(update)
+                    let update = self.priceFeedEngine.nextUpdate(for: stock)
+                    self.webSocketService.send(update)
                 }
             }
     }
     
     private func bind() {
-        webSocketManager.incomingMessages
+        webSocketService.connectionPublisher
+            .receive(on: DispatchQueue.main)
+            .assign(to: &$isConnected)
+
+        webSocketService.messagePublisher
             .receive(on: DispatchQueue.main)
             .sink { [weak self] message in
                 self?.apply(message)
             }
             .store(in: &cancellables)
-
-        webSocketManager.$isConnected
-            .receive(on: DispatchQueue.main)
-            .assign(to: &$isConnected)
     }
     
     func stopFeed() {

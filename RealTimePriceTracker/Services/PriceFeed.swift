@@ -7,7 +7,11 @@
 
 import Foundation
 
-struct PriceFeedEngine {
+protocol PriceFeedGenerating {
+    func nextUpdate(for stock: Stock) -> PriceUpdate
+}
+
+struct PriceFeedEngine: PriceFeedGenerating {
     func nextUpdate(for stock: Stock) -> PriceUpdate {
         let direction = Bool.random() ? 1.0 : -1.0
         let volatility = Double.random(in: 0.002...0.025)

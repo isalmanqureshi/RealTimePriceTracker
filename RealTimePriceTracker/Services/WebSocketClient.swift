@@ -7,38 +7,44 @@
 import Foundation
 import Combine
 
-@MainActor
-final class WebSocketClient: ObservableObject {
-    @Published private(set) var isConnected = false
-    
+final class WebSocketClient {
     private let endpoint = URL(string: "wss://ws.postman-echo.com/raw")!
-    private var webSocketTask: URLSessionWebSocketTask?
-    private lazy var session = URLSession(configuration: .default)
-    
     private let decoder = JSONDecoder()
     private let encoder = JSONEncoder()
     
-    let receivedMessages = PassthroughSubject<PriceUpdate, Never>()
+    private var webSocketTask: URLSessionWebSocketTask?
+    private lazy var session = URLSession(configuration: .default)
+    
+    private let connection = CurrentValueSubject<Bool, Never>(false)
+    private let receivedMessage = PassthroughSubject<PriceUpdate, Never>()
+    
+    var connectionPublisher: AnyPublisher<Bool, Never> {
+        connection.removeDuplicates().eraseToAnyPublisher()
+    }
+    
+    var messagePublisher: AnyPublisher<PriceUpdate, Never> {
+        receivedMessage.eraseToAnyPublisher()
+    }
     
     func connect() {
         guard webSocketTask == nil else { return }
-
+        
         let task = session.webSocketTask(with: endpoint)
         webSocketTask = task
         task.resume()
-        isConnected = true
+        connection.send(true)
         receiveNext()
     }
-
+    
     func disconnect() {
         webSocketTask?.cancel(with: .normalClosure, reason: nil)
         webSocketTask = nil
-        isConnected = false
+        connection.send(false)
     }
     
     func send(_ message: PriceUpdate) {
         guard let webSocketTask else { return }
-
+        
         do {
             let data = try encoder.encode(message)
             let text = String(decoding: data, as: UTF8.self)
@@ -46,20 +52,20 @@ final class WebSocketClient: ObservableObject {
                 guard let self else { return }
                 if error != nil {
                     Task { @MainActor in
-                        self.isConnected = false
+                        self.connection.send(false)
                         self.webSocketTask = nil
                     }
                 }
             }
         } catch {
-            isConnected = false
+            self.connection.send(false)
         }
     }
     
     private func receiveNext() {
         webSocketTask?.receive { [weak self] result in
             guard let self else { return }
-
+            
             switch result {
             case .success(let payload):
                 let data: Data?
@@ -71,21 +77,17 @@ final class WebSocketClient: ObservableObject {
                 @unknown default:
                     data = nil
                 }
-
+                
                 if let data,
                    let decoded = try? self.decoder.decode(PriceUpdate.self, from: data) {
-                    Task { @MainActor in
-                        self.receivedMessages.send(decoded)
+                        self.receivedMessage.send(decoded)
                     }
-                }
-
+                
                 self.receiveNext()
-
+                
             case .failure:
-                Task { @MainActor in
-                    self.isConnected = false
-                    self.webSocketTask = nil
-                }
+                self.connection.send(false)
+                self.webSocketTask = nil
             }
         }
     }
