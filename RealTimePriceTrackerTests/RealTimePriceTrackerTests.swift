@@ -6,31 +6,116 @@
 //
 
 import XCTest
+import Foundation
+import Combine
 @testable import RealTimePriceTracker
 
 final class RealTimePriceTrackerTests: XCTestCase {
-
-    override func setUpWithError() throws {
-        // Put setup code here. This method is called before the invocation of each test method in the class.
+    
+    @MainActor
+    func testTrackedSymbolsExactCountAndValues() {
+        XCTAssertEqual(Stock.trackedSymbols, [
+            "AAPL", "GOOG", "TSLA", "AMZN", "MSFT", "NVDA", "META", "AMD", "NFLX", "AVGO",
+            "ADBE", "PYPL", "CRM", "ORCL", "CSCO", "IBM", "QCOM", "TXN", "AMAT", "MU",
+            "LRCX", "NOW", "INTU", "ISRG", "SPOT"
+        ])
+    }
+    
+    @MainActor
+    func testTickSendsUpdatesForAllSymbols() async {
+        let websocket = MockWebSocketService()
+        let ticker = MockTickerService()
+        let generator = MockPriceFeedGenerator()
+        let dependencies = AppDependencies(webSocketService: websocket, tickerService: ticker, priceFeedService: generator)
+        let vm = StocksViewModel(dependencies: dependencies, initialStocks: [
+            Stock(symbol: "AAPL", price: 100, changePercent: 0, previousPrice: 100, flashDirection: nil),
+            Stock(symbol: "MSFT", price: 200, changePercent: 0, previousPrice: 200, flashDirection: nil)
+        ])
+        
+        vm.startFeed()
+        ticker.sendTick()
+        await drainMainQueue()
+        
+        XCTAssertEqual(websocket.sentMessages.count, 2)
+        XCTAssertEqual(Set(websocket.sentMessages.map(\.symbol)), ["AAPL", "MSFT"])
     }
 
-    override func tearDownWithError() throws {
-        // Put teardown code here. This method is called after the invocation of each test method in the class.
+    @MainActor
+    func testInboundMessageUpdatesAndSortsDescending() async {
+        let websocket = MockWebSocketService()
+        let ticker = MockTickerService()
+        let generator = MockPriceFeedGenerator()
+        let dependencies = AppDependencies(webSocketService: websocket, tickerService: ticker, priceFeedService: generator)
+        let vm = StocksViewModel(dependencies: dependencies, initialStocks: [
+            Stock(symbol: "AAPL", price: 100, changePercent: 0, previousPrice: 100, flashDirection: nil),
+            Stock(symbol: "MSFT", price: 200, changePercent: 0, previousPrice: 200, flashDirection: nil)
+        ])
+
+        websocket.sendIncoming(.init(symbol: "AAPL", price: 300, changePercent: 2.0))
+        await drainMainQueue()
+
+        XCTAssertEqual(vm.stocks.first?.symbol, "AAPL")
+        XCTAssertEqual(vm.stocks.first?.previousPrice, 100)
+        XCTAssertEqual(vm.stocks.first?.price, 300)
+    }
+    
+    private func drainMainQueue() async {
+         await withCheckedContinuation { continuation in
+             DispatchQueue.main.async {
+                 continuation.resume()
+             }
+         }
+     }
+}
+
+private final class MockWebSocketService: WebSocketServicing {
+    private let connection = CurrentValueSubject<Bool, Never>(true)
+    private let incomingMessage = PassthroughSubject<PriceUpdate, Never>()
+
+    private(set) var sentMessages: [PriceUpdate] = []
+
+    var connectionPublisher: AnyPublisher<Bool, Never> {
+        connection.eraseToAnyPublisher()
     }
 
-    func testExample() throws {
-        // This is an example of a functional test case.
-        // Use XCTAssert and related functions to verify your tests produce the correct results.
-        // Any test you write for XCTest can be annotated as throws and async.
-        // Mark your test throws to produce an unexpected failure when your test encounters an uncaught error.
-        // Mark your test async to allow awaiting for asynchronous code to complete. Check the results with assertions afterwards.
+    var messagePublisher: AnyPublisher<PriceUpdate, Never> {
+        incomingMessage.eraseToAnyPublisher()
     }
 
-    func testPerformanceExample() throws {
-        // This is an example of a performance test case.
-        self.measure {
-            // Put the code you want to measure the time of here.
-        }
+    func connect() {
+        connection.send(true)
     }
 
+    func disconnect() {
+        connection.send(false)
+    }
+
+    func send(_ message: StockMessage) {
+        sentMessages.append(message)
+    }
+
+    func sendIncoming(_ message: StockMessage) {
+        incomingMessage.send(message)
+    }
+}
+
+private struct MockPriceFeedGenerator: PriceFeedGenerating {
+    func nextUpdate(for stock: Stock) -> PriceUpdate {
+        PriceUpdate(symbol: stock.symbol, price: stock.price + 1, changePercent: 1.0)
+    }
+}
+
+private final class MockTickerService: TickerServicing {
+    private let tick = PassthroughSubject<Date, Never>()
+
+    var tickPublisher: AnyPublisher<Date, Never> {
+        tick.eraseToAnyPublisher()
+    }
+
+    func start(interval: TimeInterval) {}
+    func stop() {}
+
+    func sendTick() {
+        tick.send(Date())
+    }
 }
