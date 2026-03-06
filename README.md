@@ -22,11 +22,17 @@ SwiftUI iOS app that simulates real-time stock prices for 25 symbols over a shar
 ### Protocols
 - `WebSocketServicing`
 - `PriceFeedGenerating`
+- `TickerServicing`
 
 ### Services 
 - `WebSocketClient` (low-level socket)
 - `WebSocketManager` (protocol-conforming service)
 - `PriceFeedEngine` (volatility simulation ±0.2%...±2.5%)
+- `TimerTickerService` (runtime ticker)
+
+### DI 
+- `AppDependencies` with `.live()` composition.
+- Live dependencies create exactly one websocket service instance used by `StocksViewModel`.
 
 ### ViewModel
 - `StocksViewModel` owns stocks, feed state, connection state, sorting, flashing, and message application.
@@ -38,3 +44,7 @@ SwiftUI iOS app that simulates real-time stock prices for 25 symbols over a shar
 - Navigation via `NavigationStack` + `.navigationDestination(for: Stock.self)`.
 
 ## Testing
+Unit tests use mocks/fakes to avoid network and real timers:
+- manual ticker tick injection,
+- inbound message injection,
+- deterministic sorting/update assertions.
