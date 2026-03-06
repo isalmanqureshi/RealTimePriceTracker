@@ -17,5 +17,19 @@ struct FeedView: View {
             }
         }
         .navigationTitle("StockTracker")
+        .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Label(viewModel.isConnected ? "Connected" : "Disconnected", systemImage: viewModel.isConnected ? "dot.radiowaves.left.and.right" : "wifi.slash")
+                    .foregroundStyle(viewModel.isConnected ? .green : .red)
+                    .font(.caption)
+            }
+
+            ToolbarItem(placement: .topBarTrailing) {
+                HStack {
+                    Button("Start") { viewModel.startFeed() }
+                    Button("Stop") { viewModel.stopFeed() }
+                }
+            }
+        }
     }
 }

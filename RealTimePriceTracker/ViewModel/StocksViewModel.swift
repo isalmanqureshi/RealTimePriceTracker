@@ -31,7 +31,7 @@ final class StocksViewModel: ObservableObject {
         guard timerCancellable == nil else { return }
         connectIfNeeded()
 
-        timerCancellable = Timer.publish(every: 1.6, on: .main, in: .common)
+        timerCancellable = Timer.publish(every: 2, on: .main, in: .common)
             .autoconnect()
             .sink { [weak self] _ in
                 guard let self else { return }
