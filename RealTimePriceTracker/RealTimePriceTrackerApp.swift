@@ -9,8 +9,12 @@ import SwiftUI
 
 @main
 struct RealTimePriceTrackerApp: App {
-    @StateObject private var viewModel = StocksViewModel()
+    @StateObject private var viewModel: StocksViewModel
     @State private var path: [Stock] = []
+    
+    init() {
+        _viewModel = StateObject(wrappedValue: StocksViewModel(dependencies: .live()))
+    }
     
     var body: some Scene {
         WindowGroup {

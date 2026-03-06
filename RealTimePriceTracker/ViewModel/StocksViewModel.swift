@@ -16,15 +16,13 @@ final class StocksViewModel: ObservableObject {
     private let priceFeedEngine: PriceFeedGenerating
     private let tickerService: TickerServicing
     
-    private var timerCancellable: AnyCancellable?
     private var cancellables = Set<AnyCancellable>()
     
-    init(webSocketService: WebSocketServicing = WebSocketManager(client: WebSocketClient()),      priceFeedEngine: PriceFeedGenerating = PriceFeedEngine(),
-        tickerService: TickerServicing = TimerTickerService(),
+    init(dependencies: AppDependencies,
         initialStocks: [Stock] = Stock.initialStocks()) {
-        self.webSocketService = webSocketService
-        self.priceFeedEngine = priceFeedEngine
-        self.tickerService = tickerService
+        self.webSocketService = dependencies.webSocketService
+        self.priceFeedEngine = dependencies.priceFeedService
+        self.tickerService = dependencies.tickerService
         self.stocks = initialStocks.sorted { lhs, rhs in
             if lhs.price == rhs.price { return lhs.symbol < rhs.symbol }
             return lhs.price > rhs.price
