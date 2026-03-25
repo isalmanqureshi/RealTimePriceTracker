@@ -17,7 +17,7 @@ final class StocksViewModel: ObservableObject {
     private let syncQueue = DispatchQueue(label: "com.app.RealTimePriceTracker")
     private var lastFlashUpdate: [String: Date] = [:]
     
-    private var stockMap: [String: Stock] = [:] // Symbol -> Current Array Index
+    private var stockMap: [String: Stock] = [:]
     
     private let webSocketService: WebSocketServicing
     private let priceFeedEngine: PriceFeedGenerating
@@ -112,13 +112,6 @@ final class StocksViewModel: ObservableObject {
         DispatchQueue.main.async { self.needsRefresh = true }
     }
     
-    private func refreshSortedList() {
-        self.stocks = stockMap.values.sorted {
-            if $0.price == $1.price { return $0.symbol < $1.symbol }
-            return $0.price > $1.price
-        }
-    }
-    
     private func refreshUI() {
         syncQueue.async { [weak self] in
             guard let self = self else { return }
@@ -145,14 +138,14 @@ final class StocksViewModel: ObservableObject {
         }
     }
     
-    // Thread-safe getter
     func stock(for symbol: String) -> Stock? {
-        syncQueue.sync { stockMap[symbol] }
+        dispatchPrecondition(condition: .notOnQueue(syncQueue))
+        return syncQueue.sync { stockMap[symbol] }
     }
     
     private func generateUpdates() {
-        stockMap.values.forEach { stock in
-            let update = priceFeedEngine.nextUpdate(for: stock)
+        stocks.enumerated().forEach { stock in
+            let update = priceFeedEngine.nextUpdate(for: stock.element)
             webSocketService.send(update)
         }
     }
